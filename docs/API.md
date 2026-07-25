@@ -72,6 +72,7 @@ For multi-replica deployments set `RATE_LIMIT_STORAGE_URI=redis://…` so limits
 | `min_speakers` | query | no | Lower bound on speaker count. Must be `1`–`MAX_SPEAKERS` (default `50`); out-of-range values return `422`. |
 | `max_speakers` | query | no | Upper bound on speaker count. Must be `1`–`MAX_SPEAKERS` (default `50`); out-of-range values return `422`. |
 | `exclusive` | query | no | If `true`, return the pipeline's `exclusive_speaker_diarization` output (non-overlapping segments). Default `false`. |
+| `return_embeddings` | query | no | If `true`, include a per-speaker centroid embedding vector in the `result` event under `embeddings`. Default `false` (the field is present but empty). |
 
 ### Successful response
 
@@ -151,7 +152,10 @@ Terminal success event. The stream closes immediately after.
   ],
   "processing_time_seconds": 4.2,
   "model": "pyannote/speaker-diarization-community-1",
-  "pyannote_version": "<from installed pyannote.audio>"
+  "pyannote_version": "<from installed pyannote.audio>",
+  "embeddings": {
+    "SPEAKER_00": [0.0123, -0.0456, "... (embedding dimension floats)"]
+  }
 }
 ```
 
@@ -164,6 +168,7 @@ Terminal success event. The stream closes immediately after.
 | `processing_time_seconds` | float | Wall time of the inference call only (not including upload/queue wait). |
 | `model` | string | Static model id; useful for downstream auditing. |
 | `pyannote_version` | string | Installed `pyannote.audio` version. |
+| `embeddings` | object | Per-speaker L2-normalized centroid embedding vectors, keyed by speaker label. Empty `{}` unless `return_embeddings=true`. Each vector is the pipeline's clustering centroid for that speaker, suitable for cosine-similarity matching against reference embeddings. May be empty for a speaker the pipeline could not embed. |
 
 ### `event: error`
 

@@ -14,6 +14,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated, Any
 
+import numpy as np
 import torch
 import torchaudio
 from fastapi import (
@@ -332,6 +333,11 @@ class DiarizeResponse(BaseModel):
     processing_time_seconds: float
     model: str = "pyannote/speaker-diarization-community-1"
     pyannote_version: str
+    embeddings: dict[str, list[float]] = Field(
+        default_factory=dict,
+        description="Per-speaker L2-normalized centroid embedding vectors, keyed by "
+        "speaker label. Empty unless return_embeddings=true was requested.",
+    )
 
 
 _pipeline: Any = None
@@ -380,13 +386,25 @@ def _local_pipeline_dir() -> Path | None:
     return path
 
 
+class _DryRunOutput:
+    """DiarizeOutput-shaped stand-in returned by the dry-run pipeline."""
+
+    def __init__(self, ann: Annotation, embeddings: np.ndarray | None) -> None:
+        self.speaker_diarization = ann
+        self.exclusive_speaker_diarization = ann
+        self.speaker_embeddings = embeddings
+
+
 class _DryRunPipeline:
     """Minimal stand-in used only when PYANNOTE_TESTING=1 (see tests)."""
 
-    def __call__(self, *_args: Any, **_kwargs: Any) -> dict[str, Annotation]:
+    def __call__(self, *_args: Any, **_kwargs: Any) -> _DryRunOutput:
         ann = Annotation()
         ann[Segment(0.0, 0.5)] = "SPEAKER_00"
-        return {"speaker_diarization": ann}
+        # A single deterministic, non-normalized centroid so tests can assert
+        # the response contains a unit-length embedding for the one speaker.
+        embeddings = np.array([[3.0, 4.0, 0.0, 0.0]], dtype=np.float64)
+        return _DryRunOutput(ann, embeddings)
 
 
 def _load_pipeline() -> Any:
@@ -454,11 +472,51 @@ def _annotation_to_segments(diarization: Annotation) -> tuple[list[SegmentModel]
     return segments, speakers_sorted
 
 
+def _extract_speaker_embeddings(raw: Any) -> dict[str, list[float]]:
+    """Pull per-speaker centroid embeddings out of a pyannote 4.x DiarizeOutput.
+
+    The SpeakerDiarization pipeline already computes one embedding per speaker
+    during clustering and returns them as ``output.speaker_embeddings``, a
+    ``(num_speakers, dimension)`` array sorted in ``speaker_diarization.labels()``
+    order. We key each vector by its speaker label and L2-normalize it so the
+    result is ready for cosine-similarity matching. Zero rows (padding for
+    speakers without a reliable centroid) are left unnormalized.
+
+    Returns an empty dict when the output carries no embeddings (e.g. the
+    dry-run pipeline, OracleClustering, or an unexpected output shape).
+    """
+    embeddings = getattr(raw, "speaker_embeddings", None)
+    diarization = getattr(raw, "speaker_diarization", None)
+    if embeddings is None or diarization is None:
+        return {}
+    try:
+        matrix = np.asarray(embeddings, dtype=np.float64)
+    except (TypeError, ValueError):
+        return {}
+    if matrix.ndim != 2:
+        return {}
+
+    labels = list(diarization.labels())
+    result: dict[str, list[float]] = {}
+    for index, label in enumerate(labels):
+        if index >= matrix.shape[0]:
+            break
+        vector = matrix[index]
+        if not np.all(np.isfinite(vector)):
+            continue
+        norm = float(np.linalg.norm(vector))
+        if norm > 0.0:
+            vector = vector / norm
+        result[str(label)] = [float(x) for x in vector]
+    return result
+
+
 class _DiarizationParams(BaseModel):
     num_speakers: int | None = None
     min_speakers: int | None = None
     max_speakers: int | None = None
     exclusive: bool = False
+    return_embeddings: bool = False
 
 
 class _Job:
@@ -520,6 +578,15 @@ def _run_diarization_sync(tmp_path: Path, params: _DiarizationParams) -> Diarize
         ) from exc
 
     segments, speakers = _annotation_to_segments(diarization)
+    embeddings: dict[str, list[float]] = {}
+    if params.return_embeddings:
+        embeddings = _extract_speaker_embeddings(raw_out)
+        if not embeddings:
+            logger.warning(
+                "return_embeddings requested but no speaker embeddings were available "
+                "in the pipeline output (num_speakers=%d)",
+                len(speakers),
+            )
     return DiarizeResponse(
         duration_seconds=audio_duration,
         num_speakers=len(speakers),
@@ -527,6 +594,7 @@ def _run_diarization_sync(tmp_path: Path, params: _DiarizationParams) -> Diarize
         segments=segments,
         processing_time_seconds=time.monotonic() - t0,
         pyannote_version=_pyannote_version,
+        embeddings=embeddings,
     )
 
 
@@ -841,6 +909,7 @@ async def diarize(
     min_speakers: Annotated[int | None, Query(ge=1, le=MAX_SPEAKERS)] = None,
     max_speakers: Annotated[int | None, Query(ge=1, le=MAX_SPEAKERS)] = None,
     exclusive: Annotated[bool, Query()] = False,
+    return_embeddings: Annotated[bool, Query()] = False,
 ) -> StreamingResponse:
     if _pipeline is None or _JOB_QUEUE is None:
         raise HTTPException(status_code=503, detail={"error": "pipeline_not_loaded"})
@@ -899,6 +968,7 @@ async def diarize(
         min_speakers=min_speakers,
         max_speakers=max_speakers,
         exclusive=exclusive,
+        return_embeddings=return_embeddings,
     )
     job = await _enqueue_diarization_job(tmp_path, params)
 

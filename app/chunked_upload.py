@@ -651,6 +651,7 @@ async def complete_upload_session(
     min_speakers: Annotated[int | None, Query(ge=1, le=MAX_SPEAKERS)] = None,
     max_speakers: Annotated[int | None, Query(ge=1, le=MAX_SPEAKERS)] = None,
     exclusive: Annotated[bool, Query()] = False,
+    return_embeddings: Annotated[bool, Query()] = False,
 ) -> StreamingResponse:
     if (
         _enqueue_diarization is None
@@ -692,6 +693,7 @@ async def complete_upload_session(
             min_speakers=min_speakers,
             max_speakers=max_speakers,
             exclusive=exclusive,
+            return_embeddings=return_embeddings,
         )
         job = await _enqueue_diarization(
             assembled_path,
