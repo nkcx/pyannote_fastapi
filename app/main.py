@@ -743,7 +743,13 @@ async def count_requests(
 ) -> Response:
     response = await call_next(request)
     status = str(response.status_code)
-    REQUESTS_TOTAL.labels(endpoint=request.url.path, status=status).inc()
+    # Label with the matched route *template* (e.g. "/diarize/sessions/{upload_id}"),
+    # not the raw URL path. Using the raw path lets an attacker create an
+    # unbounded number of metric series (one per distinct 404 path), which
+    # grows process memory without limit. Unmatched paths collapse to "other".
+    route = request.scope.get("route")
+    endpoint = getattr(route, "path", None) or "other"
+    REQUESTS_TOTAL.labels(endpoint=endpoint, status=status).inc()
     return response
 
 
