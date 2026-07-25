@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import io
 import json
@@ -8,10 +9,50 @@ import time
 import wave
 from typing import Any
 
+import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
+from starlette.requests import Request
 
 import chunked_upload
 import main
+
+
+def _streaming_request(
+    parts: list[bytes], headers: list[tuple[bytes, bytes]] | None = None
+) -> Request:
+    """Build a Request whose body arrives as multiple ASGI stream messages."""
+    queue = list(parts)
+
+    async def receive() -> dict[str, Any]:
+        if queue:
+            body = queue.pop(0)
+            return {"type": "http.request", "body": body, "more_body": bool(queue)}
+        return {"type": "http.request", "body": b"", "more_body": False}
+
+    scope = {
+        "type": "http",
+        "method": "PUT",
+        "path": "/",
+        "headers": headers or [],
+    }
+    return Request(scope, receive)
+
+
+def test_read_request_body_caps_streamed_body() -> None:
+    """A body streamed without Content-Length is rejected once it crosses the
+    cap, instead of being buffered whole (the OOM vector)."""
+    req = _streaming_request([b"x" * 100, b"x" * 100, b"x" * 100])
+    with pytest.raises(HTTPException) as exc_info:
+        asyncio.run(chunked_upload._read_request_body(req, max_bytes=150))
+    assert exc_info.value.status_code == 413
+    assert exc_info.value.detail["error"] == "chunk_too_large"
+
+
+def test_read_request_body_returns_body_under_cap() -> None:
+    req = _streaming_request([b"ab", b"cd", b"ef"])
+    body = asyncio.run(chunked_upload._read_request_body(req, max_bytes=100))
+    assert body == b"abcdef"
 
 
 def _parse_sse(stream_text: str) -> list[tuple[str, dict]]:

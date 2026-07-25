@@ -386,13 +386,21 @@ async def _read_request_body(request: Request, max_bytes: int) -> bytes:
                 status_code=413,
                 detail={"error": "chunk_too_large", "max_chunk_size_bytes": max_bytes},
             )
-    body = await request.body()
-    if len(body) > max_bytes:
-        raise HTTPException(
-            status_code=413,
-            detail={"error": "chunk_too_large", "max_chunk_size_bytes": max_bytes},
-        )
-    return body
+    # Read the body incrementally and abort as soon as the cap is crossed.
+    # `request.body()` buffers the *entire* stream into memory before any size
+    # check, so a request using chunked transfer-encoding (no Content-Length,
+    # bypassing the check above) could exhaust memory before the 413 fires.
+    chunks: list[bytes] = []
+    received = 0
+    async for part in request.stream():
+        received += len(part)
+        if received > max_bytes:
+            raise HTTPException(
+                status_code=413,
+                detail={"error": "chunk_too_large", "max_chunk_size_bytes": max_bytes},
+            )
+        chunks.append(part)
+    return b"".join(chunks)
 
 
 def _validate_content_range(
