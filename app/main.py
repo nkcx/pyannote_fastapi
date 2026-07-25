@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 import json
 import logging
 import os
@@ -207,8 +208,13 @@ def _rate_limit_key(request: Request) -> str:
     auth = request.headers.get("authorization", "")
     if auth.lower().startswith("bearer "):
         token = auth.split(" ", 1)[1].strip()
-        if token:
-            return f"key:{token}"
+        # Only bucket by token when it is a *valid* key. Keying on arbitrary
+        # presented tokens lets an attacker mint unlimited distinct buckets in
+        # the limiter store (unbounded memory with memory://; secrets written
+        # to redis with a shared backend). Invalid tokens fall through to the
+        # per-IP bucket. The token is hashed so raw keys are never stored.
+        if token and token in ALLOWED_API_KEYS:
+            return f"key:{hashlib.sha256(token.encode()).hexdigest()}"
     return f"ip:{_client_ip(request)}"
 
 
