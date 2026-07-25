@@ -331,7 +331,10 @@ class DiarizeResponse(BaseModel):
     speakers: list[str]
     segments: list[SegmentModel]
     processing_time_seconds: float
-    model: str = "pyannote/speaker-diarization-community-1"
+    model: str = Field(
+        default="pyannote/speaker-diarization-community-1",
+        description="Model id actually used for this run (mirrors the MODEL_ID env var).",
+    )
     pyannote_version: str
     embeddings: dict[str, list[float]] = Field(
         default_factory=dict,
@@ -593,6 +596,7 @@ def _run_diarization_sync(tmp_path: Path, params: _DiarizationParams) -> Diarize
         speakers=speakers,
         segments=segments,
         processing_time_seconds=time.monotonic() - t0,
+        model=MODEL_ID,
         pyannote_version=_pyannote_version,
         embeddings=embeddings,
     )

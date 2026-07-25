@@ -4,8 +4,10 @@ import io
 import json
 import wave
 
+import pytest
 from fastapi.testclient import TestClient
 
+import main
 from main import app
 
 
@@ -129,8 +131,6 @@ def test_extract_speaker_embeddings_normalizes_and_keys_by_label() -> None:
     import numpy as np
     from pyannote.core import Annotation, Segment
 
-    import main
-
     ann = Annotation()
     ann[Segment(0.0, 1.0)] = "SPEAKER_00"
     ann[Segment(1.0, 2.0)] = "SPEAKER_01"
@@ -148,8 +148,6 @@ def test_extract_speaker_embeddings_normalizes_and_keys_by_label() -> None:
 def test_extract_speaker_embeddings_handles_missing_embeddings() -> None:
     from pyannote.core import Annotation, Segment
 
-    import main
-
     ann = Annotation()
     ann[Segment(0.0, 1.0)] = "SPEAKER_00"
 
@@ -160,3 +158,28 @@ def test_extract_speaker_embeddings_handles_missing_embeddings() -> None:
     assert main._extract_speaker_embeddings(_Out()) == {}
     # An output object with no embeddings attribute at all.
     assert main._extract_speaker_embeddings(object()) == {}
+
+
+def test_diarize_reports_default_model_id() -> None:
+    with TestClient(app) as client:
+        r = client.post(
+            "/diarize",
+            headers={"Authorization": "Bearer test-integration-key"},
+            files={"file": ("test.wav", _silent_wav_bytes(), "audio/wav")},
+        )
+        assert r.status_code == 200
+        result = next(data for name, data in _parse_sse(r.text) if name == "result")
+        assert result["model"] == main.MODEL_ID
+
+
+def test_diarize_reports_configured_model_id(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(main, "MODEL_ID", "acme/custom-diarization-v9")
+    with TestClient(app) as client:
+        r = client.post(
+            "/diarize",
+            headers={"Authorization": "Bearer test-integration-key"},
+            files={"file": ("test.wav", _silent_wav_bytes(), "audio/wav")},
+        )
+        assert r.status_code == 200
+        result = next(data for name, data in _parse_sse(r.text) if name == "result")
+        assert result["model"] == "acme/custom-diarization-v9"

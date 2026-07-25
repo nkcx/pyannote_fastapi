@@ -166,7 +166,7 @@ Terminal success event. The stream closes immediately after.
 | `speakers` | string[] | Sorted list of distinct speaker labels. |
 | `segments` | object[] | Time-ordered speech turns. `start` < `end`, both in seconds. |
 | `processing_time_seconds` | float | Wall time of the inference call only (not including upload/queue wait). |
-| `model` | string | Static model id; useful for downstream auditing. |
+| `model` | string | Model id used for this run; mirrors the `MODEL_ID` env var (default `pyannote/speaker-diarization-community-1`). Useful for downstream auditing. |
 | `pyannote_version` | string | Installed `pyannote.audio` version. |
 | `embeddings` | object | Per-speaker L2-normalized centroid embedding vectors, keyed by speaker label. Empty `{}` unless `return_embeddings=true`. Each vector is the pipeline's clustering centroid for that speaker, suitable for cosine-similarity matching against reference embeddings. May be empty for a speaker the pipeline could not embed. |
 
