@@ -1,7 +1,13 @@
 # pyannote speaker diarization FastAPI Docker image
 
+> ### 🍴 This is an actively maintained fork
+>
+> Forked from [**maximsachs/pyannote_fastapi**](https://github.com/maximsachs/pyannote_fastapi) specifically to add **per-speaker embedding extraction** to the `/diarize` endpoint — the embeddings let you match anonymous diarization labels (`SPEAKER_00`, `SPEAKER_01`, …) back to real people via cosine similarity, instead of the labels resetting every run. In the process, a handful of security and robustness issues were also fixed (constant-time API-key checks, unbounded-memory / rate-limit-bypass hardening, upload streaming caps, and more).
+>
+> **Please report issues with this fork on [this repository's issue tracker](https://github.com/nkcx/pyannote_fastapi/issues) — not against the upstream project.** Fixes here may be offered back upstream, but this fork is maintained independently.
+
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Workflow: build-on-push](https://img.shields.io/github/actions/workflow/status/maximsachs/pyannote_fastapi/build-on-push.yml?branch=main&label=build)](https://github.com/maximsachs/pyannote_fastapi/actions/workflows/build-on-push.yml)
+[![Workflow: build-on-push](https://img.shields.io/github/actions/workflow/status/nkcx/pyannote_fastapi/build-on-push.yml?branch=main&label=build)](https://github.com/nkcx/pyannote_fastapi/actions/workflows/build-on-push.yml)
 [![Docker Pulls](https://img.shields.io/docker/pulls/maximfilms/pyannote_fastapi.svg)](https://hub.docker.com/r/maximfilms/pyannote_fastapi)
 
 <!-- pyannote-version:start -->
@@ -10,7 +16,7 @@
 
 A minimal FastAPI service around [**pyannote/speaker-diarization-community-1**](https://huggingface.co/pyannote/speaker-diarization-community-1). The pipeline is loaded once at startup; diarization requests are queued to in-process workers and streamed back to the client as Server-Sent Events with periodic heartbeats and a final result frame.
 
-**Images:** [Docker Hub](https://hub.docker.com/r/maximfilms/pyannote_fastapi) (`docker.io/maximfilms/pyannote_fastapi`) and [GHCR](https://github.com/maximsachs/pyannote_fastapi/pkgs/container/pyannote_fastapi) (`ghcr.io/maximsachs/pyannote_fastapi`) — CUDA `:latest`, CPU `:latest-cpu`.
+**Images:** published to GHCR (`ghcr.io/nkcx/pyannote_fastapi`) and Docker Hub — CUDA `:latest`. This fork builds **CUDA images only**; the CPU build was dropped from CI.
 
 **Integrating a client?** See [`docs/API.md`](docs/API.md) for the full endpoint reference, every error code, the SSE event schema, and the performance-tuning knobs.
 
