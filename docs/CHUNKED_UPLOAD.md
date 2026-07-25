@@ -40,6 +40,7 @@ Discovery: `GET /diarize/capabilities` returns limits and recommended chunk size
 | `MAX_CONCURRENT_CHUNKED_SESSIONS` | 32 | Open sessions cap |
 | `CHUNKED_UPLOAD_DISK_QUOTA_BYTES` | 2× max upload | Partial upload disk budget |
 | `CHUNKED_UPLOAD_DIR` | `$TMPDIR/pyannote_chunked_uploads` | Staging directory |
+| `CHUNKED_JANITOR_INTERVAL_SECONDS` | 300 | How often the background janitor purges expired sessions (min 30) |
 | `SINGLE_UPLOAD_MAX_BYTES` | 100 MiB | Advertised in `/diarize/capabilities` only |
 
 ## Example (curl)

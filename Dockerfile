@@ -18,12 +18,12 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV HF_HOME=/opt/huggingface
 
 LABEL org.opencontainers.image.title="pyannote_fastapi (CUDA)" \
-      org.opencontainers.image.description="FastAPI wrapper around pyannote/speaker-diarization-community-1. CUDA build; base image is resolved at build time from pyannote.audio's torch lower bound (org.opencontainers.image.base.name). Model weights are NOT baked in; supply HF_TOKEN at runtime or mount MODEL_PATH. See https://github.com/maximsachs/pyannote_fastapi" \
-      org.opencontainers.image.source="https://github.com/maximsachs/pyannote_fastapi" \
-      org.opencontainers.image.url="https://github.com/maximsachs/pyannote_fastapi" \
-      org.opencontainers.image.documentation="https://github.com/maximsachs/pyannote_fastapi#readme" \
+      org.opencontainers.image.description="FastAPI wrapper around pyannote/speaker-diarization-community-1. CUDA build; base image is resolved at build time from pyannote.audio's torch lower bound (org.opencontainers.image.base.name). Model weights are NOT baked in; supply HF_TOKEN at runtime or mount MODEL_PATH. Fork of https://github.com/maximsachs/pyannote_fastapi" \
+      org.opencontainers.image.source="https://github.com/nkcx/pyannote_fastapi" \
+      org.opencontainers.image.url="https://github.com/nkcx/pyannote_fastapi" \
+      org.opencontainers.image.documentation="https://github.com/nkcx/pyannote_fastapi#readme" \
       org.opencontainers.image.licenses="MIT" \
-      org.opencontainers.image.vendor="Maxim Sachs (@maximsachs)" \
+      org.opencontainers.image.vendor="nkcx (fork of Maxim Sachs / @maximsachs)" \
       org.opencontainers.image.base.name="docker.io/${PYTORCH_BASE}" \
       org.opencontainers.image.version="${PYANNOTE_VERSION}" \
       org.opencontainers.image.revision="${VCS_REF}" \

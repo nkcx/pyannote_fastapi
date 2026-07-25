@@ -14,6 +14,8 @@
 
 A minimal FastAPI service around [**pyannote/speaker-diarization-community-1**](https://huggingface.co/pyannote/speaker-diarization-community-1). The pipeline is loaded once at startup; diarization requests are queued to in-process workers and streamed back to the client as Server-Sent Events with periodic heartbeats and a final result frame.
 
+This fork can optionally return a **per-speaker embedding vector** alongside the segments — pass `return_embeddings=true` to `/diarize` to get an L2-normalized centroid per speaker, suitable for matching anonymous `SPEAKER_xx` labels to known people via cosine similarity. Large uploads can also use a [chunked session flow](docs/CHUNKED_UPLOAD.md) to stay under proxy request-size limits.
+
 **Images:** published to GHCR at [`ghcr.io/nkcx/pyannote_fastapi`](https://github.com/nkcx/pyannote_fastapi/pkgs/container/pyannote_fastapi) — CUDA `:latest`. This fork builds **CUDA images only** and publishes to **GHCR only** (no Docker Hub).
 
 **Integrating a client?** See [`docs/API.md`](docs/API.md) for the full endpoint reference, every error code, the SSE event schema, and the performance-tuning knobs.

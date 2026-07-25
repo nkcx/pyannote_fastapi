@@ -3,20 +3,21 @@
 #
 # What it does:
 #   1. Loads HF_TOKEN from .env (or current environment).
-#   2. Pulls the image (default: maximfilms/pyannote_fastapi:latest-cpu).
+#   2. Pulls the image (default: ghcr.io/nkcx/pyannote_fastapi:latest).
 #   3. Starts the container with a named volume for the HF cache.
 #   4. Polls /live then /health until ready (first run downloads the model,
-#      which can take several minutes on CPU).
+#      which can take several minutes; the CUDA image falls back to CPU when
+#      the container is started without --gpus, which this script does).
 #   5. Posts test-audio/test.wav to /diarize and prints the JSON.
 #   6. Tears the container down.
 #
 # Usage:
 #   scripts/test-image.sh                              # default image and audio
-#   IMAGE=maximfilms/pyannote_fastapi:latest scripts/test-image.sh
+#   IMAGE=ghcr.io/nkcx/pyannote_fastapi:latest scripts/test-image.sh
 #   AUDIO=path/to/clip.wav scripts/test-image.sh
 set -euo pipefail
 
-IMAGE="${IMAGE:-maximfilms/pyannote_fastapi:latest-cpu}"
+IMAGE="${IMAGE:-ghcr.io/nkcx/pyannote_fastapi:latest}"
 AUDIO="${AUDIO:-test-audio/test.wav}"
 CONTAINER_NAME="${CONTAINER_NAME:-pyannote-fastapi-smoke}"
 HOST_PORT="${HOST_PORT:-8000}"

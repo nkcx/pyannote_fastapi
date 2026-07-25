@@ -47,7 +47,7 @@ spec:
     spec:
       containers:
         - name: pyannote
-          # Replace with your published image (Docker Hub or GHCR).
+          # Replace with your published GHCR image if you build under a different owner.
           image: ghcr.io/nkcx/pyannote_fastapi:latest
           imagePullPolicy: IfNotPresent
           ports:

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Usage (Hub download at runtime):
-#   export IMAGE="${IMAGE:-ghcr.io/YOUR_ORG/YOUR_REPO:latest}"
+#   export IMAGE="${IMAGE:-ghcr.io/nkcx/pyannote_fastapi:latest}"
 #   export API_KEYS="replace-me"
 #   export HF_TOKEN="replace-me"   # after accepting HF model access terms
 #   ./examples/docker-run.sh
@@ -11,7 +11,7 @@ set -euo pipefail
 #   export MODEL_PATH="/models/pipeline"
 #   docker run ... -e MODEL_PATH=/models/pipeline -v "$PWD/pyannote-speaker-diarization-community-1:/models/pipeline:ro" ...
 
-IMAGE="${IMAGE:?Set IMAGE to your CUDA or CPU image reference}"
+IMAGE="${IMAGE:?Set IMAGE to your CUDA image reference, e.g. ghcr.io/nkcx/pyannote_fastapi:latest}"
 API_KEYS="${API_KEYS:?Set API_KEYS to a comma-separated list}"
 
 RUN_ARGS=(
