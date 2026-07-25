@@ -41,29 +41,39 @@ jobs:
           echo "major=$(echo "${VERSION}" | cut -d. -f1)" >> "${GITHUB_OUTPUT}"
           echo "build_date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "${GITHUB_OUTPUT}"
 
-      - name: Check Docker Hub tag
-        id: dh
-        env:
-          VERSION: ${{ steps.pypi.outputs.version }}
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-        run: |
-          code="$(curl -sS -o /dev/null -w "%{http_code}" \
-            "https://hub.docker.com/v2/repositories/${DOCKERHUB_USERNAME}/${IMAGE_NAME}/tags/${VERSION}/")"
-          echo "http_code=${code}" >> "${GITHUB_OUTPUT}"
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
 
-      - name: Skip if image already published
-        if: ${{ steps.dh.outputs.http_code == '200' }}
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Skip build if this version is already on GHCR
+        id: check
+        env:
+          IMAGE_REF: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ steps.pypi.outputs.version }}
         run: |
-          echo "Docker Hub already has tag ${{ steps.pypi.outputs.version }}; nothing to do."
+          # buildx imagetools inspect needs no experimental CLI flag and uses
+          # the credentials from the GHCR login above.
+          if docker buildx imagetools inspect "${IMAGE_REF}" >/dev/null 2>&1; then
+            echo "exists=true" >> "${GITHUB_OUTPUT}"
+            echo "GHCR already has ${IMAGE_REF}; nothing to build."
+          else
+            echo "exists=false" >> "${GITHUB_OUTPUT}"
+            echo "GHCR is missing ${IMAGE_REF}; proceeding to build."
+          fi
 
       - name: Configure git user
-        if: ${{ steps.dh.outputs.http_code != '200' }}
+        if: ${{ steps.check.outputs.exists != 'true' }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
       - name: Create git tag (if missing) and push
-        if: ${{ steps.dh.outputs.http_code != '200' }}
+        if: ${{ steps.check.outputs.exists != 'true' }}
         env:
           VERSION: ${{ steps.pypi.outputs.version }}
         run: |
@@ -79,7 +89,7 @@ jobs:
 
       - name: Resolve PyTorch base image
         id: base
-        if: ${{ steps.dh.outputs.http_code != '200' }}
+        if: ${{ steps.check.outputs.exists != 'true' }}
         env:
           PYANNOTE_VERSION: ${{ steps.pypi.outputs.version }}
         run: |
@@ -87,27 +97,8 @@ jobs:
           echo "pytorch_base=${BASE}" >> "${GITHUB_OUTPUT}"
           echo "PyTorch base image: ${BASE}"
 
-      - name: Set up Docker Buildx
-        if: ${{ steps.dh.outputs.http_code != '200' }}
-        uses: docker/setup-buildx-action@v4
-
-      - name: Log in to Docker Hub
-        if: ${{ steps.dh.outputs.http_code != '200' }}
-        uses: docker/login-action@v4
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Log in to GHCR
-        if: ${{ steps.dh.outputs.http_code != '200' }}
-        uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Build and push (CUDA)
-        if: ${{ steps.dh.outputs.http_code != '200' }}
+        if: ${{ steps.check.outputs.exists != 'true' }}
         uses: docker/build-push-action@v7
         with:
           context: .
@@ -120,10 +111,6 @@ jobs:
             BUILD_DATE=${{ steps.pypi.outputs.build_date }}
             VCS_REF=${{ github.sha }}
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ steps.pypi.outputs.version }}
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ steps.pypi.outputs.major_minor }}
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ steps.pypi.outputs.major }}
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest
             ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ steps.pypi.outputs.version }}
             ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ steps.pypi.outputs.major_minor }}
             ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ steps.pypi.outputs.major }}
@@ -132,13 +119,12 @@ jobs:
           cache-to: type=gha,mode=min
 
       - name: Create or update GitHub Release
-        if: ${{ steps.dh.outputs.http_code != '200' }}
+        if: ${{ steps.check.outputs.exists != 'true' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ steps.pypi.outputs.version }}
           MAJOR_MINOR: ${{ steps.pypi.outputs.major_minor }}
           MAJOR: ${{ steps.pypi.outputs.major }}
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           BUILD_DATE: ${{ steps.pypi.outputs.build_date }}
         run: |
           NOTES_FILE="$(mktemp)"
@@ -147,17 +133,12 @@ jobs:
 
           Upstream changelog: https://github.com/pyannote/pyannote-audio/blob/main/CHANGELOG.md
 
-          ## Docker Hub
-
-          - https://hub.docker.com/r/${DOCKERHUB_USERNAME}/${IMAGE_NAME}/tags?name=${VERSION}
-          - \`docker pull ${DOCKERHUB_USERNAME}/${IMAGE_NAME}:${VERSION}\` (CUDA)
-
-          Rolling tags also updated: \`${MAJOR_MINOR}\`, \`${MAJOR}\`, \`latest\`.
-
           ## GHCR
 
           - https://github.com/${GITHUB_REPOSITORY_OWNER}/${IMAGE_NAME}/pkgs/container/${IMAGE_NAME}
           - \`docker pull ghcr.io/${GITHUB_REPOSITORY_OWNER}/${IMAGE_NAME}:${VERSION}\` (CUDA)
+
+          Rolling tags also updated: \`${MAJOR_MINOR}\`, \`${MAJOR}\`, \`latest\`.
           EOF
 
           if gh release view "v${VERSION}" >/dev/null 2>&1; then

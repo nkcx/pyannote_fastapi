@@ -48,7 +48,7 @@ spec:
       containers:
         - name: pyannote
           # Replace with your published image (Docker Hub or GHCR).
-          image: docker.io/maximfilms/pyannote_fastapi:latest
+          image: ghcr.io/nkcx/pyannote_fastapi:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8000

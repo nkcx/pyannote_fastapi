@@ -8,7 +8,7 @@
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Workflow: build-on-push](https://img.shields.io/github/actions/workflow/status/nkcx/pyannote_fastapi/build-on-push.yml?branch=main&label=build)](https://github.com/nkcx/pyannote_fastapi/actions/workflows/build-on-push.yml)
-[![Docker Pulls](https://img.shields.io/docker/pulls/maximfilms/pyannote_fastapi.svg)](https://hub.docker.com/r/maximfilms/pyannote_fastapi)
+[![GHCR](https://img.shields.io/badge/ghcr.io-nkcx%2Fpyannote__fastapi-blue?logo=github)](https://github.com/nkcx/pyannote_fastapi/pkgs/container/pyannote_fastapi)
 
 <!-- pyannote-version:start -->
 **Latest published images build against `pyannote.audio` (not yet released by automation).**
@@ -16,7 +16,7 @@
 
 A minimal FastAPI service around [**pyannote/speaker-diarization-community-1**](https://huggingface.co/pyannote/speaker-diarization-community-1). The pipeline is loaded once at startup; diarization requests are queued to in-process workers and streamed back to the client as Server-Sent Events with periodic heartbeats and a final result frame.
 
-**Images:** published to GHCR (`ghcr.io/nkcx/pyannote_fastapi`) and Docker Hub — CUDA `:latest`. This fork builds **CUDA images only**; the CPU build was dropped from CI.
+**Images:** published to GHCR at [`ghcr.io/nkcx/pyannote_fastapi`](https://github.com/nkcx/pyannote_fastapi/pkgs/container/pyannote_fastapi) — CUDA `:latest`. This fork builds **CUDA images only** and publishes to **GHCR only** (no Docker Hub).
 
 **Integrating a client?** See [`docs/API.md`](docs/API.md) for the full endpoint reference, every error code, the SSE event schema, and the performance-tuning knobs.
 
@@ -77,7 +77,7 @@ docker run --rm -it --gpus all \
   -e HF_TOKEN="replace-me" \
   -v pyannote_hf_cache:/opt/huggingface \
   -p 8000:8000 \
-  ghcr.io/maximsachs/pyannote_fastapi:latest
+  ghcr.io/nkcx/pyannote_fastapi:latest
 ```
 
 Submit a file and tail the SSE stream:
