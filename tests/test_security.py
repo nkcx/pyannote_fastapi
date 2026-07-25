@@ -82,6 +82,17 @@ def test_key_prefix_redacts_token() -> None:
     assert main._key_prefix("") == "-"
 
 
+def test_is_valid_api_key_matches_and_rejects() -> None:
+    assert main._is_valid_api_key("test-integration-key") is True
+    assert main._is_valid_api_key("wrong-key") is False
+
+
+def test_is_valid_api_key_handles_non_ascii_token() -> None:
+    """Tokens arrive latin-1 decoded; a non-ASCII byte must yield a clean
+    False, not a TypeError (which would surface as a 500 instead of a 401)."""
+    assert main._is_valid_api_key("\x80not-a-key") is False
+
+
 # ---------- auth ----------
 
 

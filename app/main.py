@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import os
+import secrets
 import sys
 import tempfile
 import time
@@ -110,6 +111,24 @@ def _read_allowed_api_keys() -> frozenset[str]:
 
 
 ALLOWED_API_KEYS: frozenset[str] = _read_allowed_api_keys()
+
+
+def _is_valid_api_key(token: str) -> bool:
+    """Constant-time check of a presented token against every allowed key.
+
+    Uses ``secrets.compare_digest`` and deliberately compares against all keys
+    without short-circuiting, so neither the match/no-match outcome nor which
+    key matched is leaked through response timing. Comparison is done on UTF-8
+    bytes: ``compare_digest`` raises on non-ASCII ``str`` inputs, and Bearer
+    tokens arrive latin-1 decoded, so a crafted token could otherwise turn a
+    clean 401 into a 500.
+    """
+    token_bytes = token.encode("utf-8")
+    valid = False
+    for key in ALLOWED_API_KEYS:
+        if secrets.compare_digest(token_bytes, key.encode("utf-8")):
+            valid = True
+    return valid
 
 MODEL_PATH_RAW = os.environ.get("MODEL_PATH", "").strip()
 MODEL_ID = os.environ.get(
@@ -699,12 +718,16 @@ async def _require_api_key(
     request: Request,
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_BEARER_SCHEME)],
 ) -> None:
-    if credentials is None or credentials.credentials not in ALLOWED_API_KEYS:
-        reason = "missing_token" if credentials is None else "invalid_token"
-        _audit("auth_failed", request, reason=reason)
-        if AUTH_FAIL_DELAY_SECONDS > 0:
-            await asyncio.sleep(AUTH_FAIL_DELAY_SECONDS)
-        raise HTTPException(status_code=401, detail={"error": "unauthorized"})
+    if credentials is None:
+        reason = "missing_token"
+    elif not _is_valid_api_key(credentials.credentials):
+        reason = "invalid_token"
+    else:
+        return
+    _audit("auth_failed", request, reason=reason)
+    if AUTH_FAIL_DELAY_SECONDS > 0:
+        await asyncio.sleep(AUTH_FAIL_DELAY_SECONDS)
+    raise HTTPException(status_code=401, detail={"error": "unauthorized"})
 
 
 @app.middleware("http")
