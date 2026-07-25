@@ -92,28 +92,3 @@ jobs:
             ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ steps.pypi.outputs.major }}
           cache-from: type=gha
           cache-to: type=gha,mode=min
-
-      - name: Build and push (CPU)
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          file: Dockerfile.cpu
-          push: true
-          platforms: linux/amd64
-          build-args: |
-            PYANNOTE_VERSION=${{ steps.pypi.outputs.version }}
-            BUILD_DATE=${{ steps.meta.outputs.build_date }}
-            VCS_REF=${{ github.sha }}
-          tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest-cpu
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.sha_tag }}-cpu
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ steps.pypi.outputs.version }}-cpu
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ steps.pypi.outputs.major_minor }}-cpu
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ steps.pypi.outputs.major }}-cpu
-            ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:latest-cpu
-            ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.sha_tag }}-cpu
-            ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ steps.pypi.outputs.version }}-cpu
-            ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ steps.pypi.outputs.major_minor }}-cpu
-            ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ steps.pypi.outputs.major }}-cpu
-          cache-from: type=gha
-          cache-to: type=gha,mode=min

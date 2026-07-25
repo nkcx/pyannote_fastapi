@@ -131,30 +131,6 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=min
 
-      - name: Build and push (CPU)
-        if: ${{ steps.dh.outputs.http_code != '200' }}
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          file: Dockerfile.cpu
-          push: true
-          platforms: linux/amd64
-          build-args: |
-            PYANNOTE_VERSION=${{ steps.pypi.outputs.version }}
-            BUILD_DATE=${{ steps.pypi.outputs.build_date }}
-            VCS_REF=${{ github.sha }}
-          tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ steps.pypi.outputs.version }}-cpu
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ steps.pypi.outputs.major_minor }}-cpu
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ steps.pypi.outputs.major }}-cpu
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest-cpu
-            ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ steps.pypi.outputs.version }}-cpu
-            ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ steps.pypi.outputs.major_minor }}-cpu
-            ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ steps.pypi.outputs.major }}-cpu
-            ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:latest-cpu
-          cache-from: type=gha
-          cache-to: type=gha,mode=min
-
       - name: Create or update GitHub Release
         if: ${{ steps.dh.outputs.http_code != '200' }}
         env:
@@ -175,15 +151,13 @@ jobs:
 
           - https://hub.docker.com/r/${DOCKERHUB_USERNAME}/${IMAGE_NAME}/tags?name=${VERSION}
           - \`docker pull ${DOCKERHUB_USERNAME}/${IMAGE_NAME}:${VERSION}\` (CUDA)
-          - \`docker pull ${DOCKERHUB_USERNAME}/${IMAGE_NAME}:${VERSION}-cpu\` (CPU)
 
-          Rolling tags also updated: \`${MAJOR_MINOR}\`, \`${MAJOR}\`, \`latest\` (and \`-cpu\` variants).
+          Rolling tags also updated: \`${MAJOR_MINOR}\`, \`${MAJOR}\`, \`latest\`.
 
           ## GHCR
 
           - https://github.com/${GITHUB_REPOSITORY_OWNER}/${IMAGE_NAME}/pkgs/container/${IMAGE_NAME}
           - \`docker pull ghcr.io/${GITHUB_REPOSITORY_OWNER}/${IMAGE_NAME}:${VERSION}\` (CUDA)
-          - \`docker pull ghcr.io/${GITHUB_REPOSITORY_OWNER}/${IMAGE_NAME}:${VERSION}-cpu\` (CPU)
           EOF
 
           if gh release view "v${VERSION}" >/dev/null 2>&1; then
