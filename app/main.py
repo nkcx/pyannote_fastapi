@@ -1,5 +1,6 @@
 import asyncio
 import hashlib
+import ipaddress
 import json
 import logging
 import os
@@ -183,9 +184,50 @@ RATE_LIMIT_METRICS = os.environ.get("RATE_LIMIT_METRICS", "60/minute").strip()
 RATE_LIMIT_STORAGE_URI = os.environ.get("RATE_LIMIT_STORAGE_URI", "memory://").strip()
 
 
+def _parse_trusted_proxies(raw: str) -> tuple[Any, ...]:
+    """Parse TRUSTED_PROXY_IPS (comma-separated IPs / CIDRs) into networks."""
+    nets: list[Any] = []
+    for item in raw.split(","):
+        item = item.strip()
+        if not item:
+            continue
+        try:
+            nets.append(ipaddress.ip_network(item, strict=False))
+        except ValueError:
+            logger.error("Ignoring invalid TRUSTED_PROXY_IPS entry: %r", item)
+    return tuple(nets)
+
+
+# Proxy source ranges whose forwarded client-IP headers we trust. Empty means
+# "trust headers from any peer" (legacy behavior; a startup warning is emitted).
+TRUSTED_PROXIES: tuple[Any, ...] = _parse_trusted_proxies(
+    os.environ.get("TRUSTED_PROXY_IPS", "")
+)
+
+
+def _peer_is_trusted(request: Request) -> bool:
+    peer = request.client.host if request.client is not None else None
+    if peer is None:
+        return False
+    try:
+        peer_ip = ipaddress.ip_address(peer)
+    except ValueError:
+        return False
+    return any(peer_ip in net for net in TRUSTED_PROXIES)
+
+
 def _client_ip(request: Request) -> str:
     """Return the originating client IP, trusting Cloudflare / reverse proxy
-    headers in priority order. Falls back to the direct socket peer."""
+    headers in priority order. Falls back to the direct socket peer.
+
+    Forwarded IP headers are trivially spoofable, so they are only honored when
+    the request actually arrived from a configured trusted proxy. When
+    TRUSTED_PROXY_IPS is unset the legacy behavior applies (headers trusted from
+    any peer); operators exposed directly to clients should set it."""
+    if TRUSTED_PROXIES and not _peer_is_trusted(request):
+        if request.client is not None:
+            return request.client.host
+        return "unknown"
     cf_ip = request.headers.get("cf-connecting-ip", "").strip()
     if cf_ip:
         return cf_ip
@@ -661,6 +703,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     global _pipeline, _pyannote_version, _JOB_QUEUE
     app.state.ready = False
     MODEL_LOADED.set(0)
+    if not TRUSTED_PROXIES:
+        logger.warning(
+            "TRUSTED_PROXY_IPS is unset; forwarded client-IP headers "
+            "(cf-connecting-ip, x-real-ip, x-forwarded-for) are trusted from ANY "
+            "peer and can be spoofed to bypass per-IP rate limits and forge audit "
+            "logs. Set TRUSTED_PROXY_IPS to your proxy egress ranges unless this "
+            "service is network-isolated behind a trusted proxy."
+        )
     _pyannote_version = _load_pyannote_version()
     logger.info(
         "startup pyannote_version=%s torch_cuda_available=%s model_path=%s model_id=%s hf_home=%s",

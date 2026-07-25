@@ -77,6 +77,32 @@ def test_client_ip_falls_back_to_socket_peer() -> None:
     assert main._client_ip(req) == "172.16.0.5"
 
 
+def test_client_ip_ignores_headers_from_untrusted_peer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import ipaddress
+
+    monkeypatch.setattr(main, "TRUSTED_PROXIES", (ipaddress.ip_network("10.0.0.0/8"),))
+    req = _fake_request({"cf-connecting-ip": "1.2.3.4"}, peer="203.0.113.5")
+    # Peer is not a trusted proxy, so the spoofable header is ignored.
+    assert main._client_ip(req) == "203.0.113.5"
+
+
+def test_client_ip_honors_headers_from_trusted_peer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import ipaddress
+
+    monkeypatch.setattr(main, "TRUSTED_PROXIES", (ipaddress.ip_network("10.0.0.0/8"),))
+    req = _fake_request({"cf-connecting-ip": "1.2.3.4"}, peer="10.1.2.3")
+    assert main._client_ip(req) == "1.2.3.4"
+
+
+def test_parse_trusted_proxies_skips_invalid() -> None:
+    nets = main._parse_trusted_proxies("10.0.0.0/8, garbage, 192.168.1.5")
+    assert len(nets) == 2
+
+
 def test_key_prefix_redacts_token() -> None:
     assert main._key_prefix("supersecretkey") == "supe***"
     assert main._key_prefix("") == "-"

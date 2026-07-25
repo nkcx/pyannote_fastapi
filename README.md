@@ -43,6 +43,8 @@ The upstream pipeline is **CC-BY-4.0** and **gated** on Hugging Face. This image
 | `RATE_LIMIT_HEALTH` | no | `120/minute` | Per-IP rate limit for `GET /health`. |
 | `RATE_LIMIT_METRICS` | no | `60/minute` | Per-IP rate limit for `GET /metrics`. |
 | `RATE_LIMIT_STORAGE_URI` | no | `memory://` | slowapi storage URI. Use e.g. `redis://host:6379` to share limits across replicas. |
+| `TRUSTED_PROXY_IPS` | no | — | Comma-separated IPs/CIDRs of trusted proxies. Forwarded client-IP headers are honored **only** when the request arrives from one of these. Unset = legacy behavior (headers trusted from any peer; a startup warning is logged). |
+| `MAX_SPEAKERS` | no | `50` | Upper bound for the `num_speakers` / `min_speakers` / `max_speakers` query params. Out-of-range values return `422`. |
 | `LOG_LEVEL` | no | `INFO` | Python logging level. |
 | `PYANNOTE_TELEMETRY` | no | `0` | Set to `1`/`true`/`yes` to opt in to upstream pyannote.audio anonymous usage telemetry. Disabled by default. |
 
@@ -55,7 +57,7 @@ Rate limits and audit logs key off the originating client IP, resolved in this p
 3. First hop of `x-forwarded-for`
 4. The direct socket peer
 
-If you deploy this image **without** a trusted proxy in front, anyone on the internet can spoof these headers. Lock the origin down so only your reverse proxy / Cloudflare egress IPs can reach the pod.
+Set `TRUSTED_PROXY_IPS` to the egress IPs/CIDRs of your proxy so these headers are honored **only** when the request actually arrives from it; requests from any other peer fall back to the direct socket address. If `TRUSTED_PROXY_IPS` is left unset the legacy behavior applies — the headers are trusted from any peer and a startup warning is logged. Either way, if you deploy this image **without** a trusted proxy in front, anyone on the internet can spoof these headers, so also lock the origin down so only your reverse proxy / Cloudflare egress IPs can reach the pod.
 
 ### Audit logging
 
