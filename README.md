@@ -10,9 +10,7 @@
 [![Workflow: build-on-push](https://img.shields.io/github/actions/workflow/status/nkcx/pyannote_fastapi/build-on-push.yml?branch=main&label=build)](https://github.com/nkcx/pyannote_fastapi/actions/workflows/build-on-push.yml)
 [![GHCR](https://img.shields.io/badge/ghcr.io-nkcx%2Fpyannote__fastapi-blue?logo=github)](https://github.com/nkcx/pyannote_fastapi/pkgs/container/pyannote_fastapi)
 
-<!-- pyannote-version:start -->
-**Latest published images build against `pyannote.audio` (not yet released by automation).**
-<!-- pyannote-version:end -->
+**Each image builds against the latest `pyannote.audio` release available on PyPI at build time.**
 
 A minimal FastAPI service around [**pyannote/speaker-diarization-community-1**](https://huggingface.co/pyannote/speaker-diarization-community-1). The pipeline is loaded once at startup; diarization requests are queued to in-process workers and streamed back to the client as Server-Sent Events with periodic heartbeats and a final result frame.
 
