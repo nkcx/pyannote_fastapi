@@ -204,3 +204,36 @@ def test_inference_timeout_increments_leak_gauge(monkeypatch: pytest.MonkeyPatch
     # Wait for the leaked thread to finish so the gauge decrements before the
     # next test runs.
     time.sleep(1.2)
+
+
+# ---------- speaker-count bounds ----------
+
+
+def test_speaker_count_out_of_range_rejected() -> None:
+    with TestClient(main.app) as client:
+        r = client.post(
+            "/diarize?num_speakers=1000000",
+            headers={"Authorization": "Bearer test-integration-key"},
+            files={"file": ("a.wav", _silent_wav_bytes(), "audio/wav")},
+        )
+    assert r.status_code == 422
+
+
+def test_speaker_count_negative_rejected() -> None:
+    with TestClient(main.app) as client:
+        r = client.post(
+            "/diarize?min_speakers=-1",
+            headers={"Authorization": "Bearer test-integration-key"},
+            files={"file": ("a.wav", _silent_wav_bytes(), "audio/wav")},
+        )
+    assert r.status_code == 422
+
+
+def test_speaker_count_within_range_accepted() -> None:
+    with TestClient(main.app) as client:
+        r = client.post(
+            "/diarize?num_speakers=2",
+            headers={"Authorization": "Bearer test-integration-key"},
+            files={"file": ("a.wav", _silent_wav_bytes(), "audio/wav")},
+        )
+    assert r.status_code == 200

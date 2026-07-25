@@ -69,6 +69,9 @@ CHUNKED_JANITOR_INTERVAL_SECONDS = max(
     30.0,
     float(os.environ.get("CHUNKED_JANITOR_INTERVAL_SECONDS", "300").strip() or "300"),
 )
+# Upper bound for client-supplied num/min/max speaker hints (mirrors MAX_SPEAKERS
+# in main.py). Out-of-range values are rejected with 422 before enqueue.
+MAX_SPEAKERS = max(1, int(os.environ.get("MAX_SPEAKERS", "50").strip() or "50"))
 
 CHUNKED_SESSIONS_CREATED = Counter(
     "pyannote_chunked_sessions_created_total",
@@ -644,9 +647,9 @@ async def complete_upload_session(
     upload_id: str,
     request: Request,
     response: Response,
-    num_speakers: Annotated[int | None, Query()] = None,
-    min_speakers: Annotated[int | None, Query()] = None,
-    max_speakers: Annotated[int | None, Query()] = None,
+    num_speakers: Annotated[int | None, Query(ge=1, le=MAX_SPEAKERS)] = None,
+    min_speakers: Annotated[int | None, Query(ge=1, le=MAX_SPEAKERS)] = None,
+    max_speakers: Annotated[int | None, Query(ge=1, le=MAX_SPEAKERS)] = None,
     exclusive: Annotated[bool, Query()] = False,
 ) -> StreamingResponse:
     if (

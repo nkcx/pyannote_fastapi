@@ -68,9 +68,9 @@ For multi-replica deployments set `RATE_LIMIT_STORAGE_URI=redis://…` so limits
 | `Authorization: Bearer <key>` | header | yes | API key (see above). |
 | `Accept: text/event-stream` | header | recommended | Signals intent; the server returns SSE regardless. |
 | `file` | multipart form field | yes | Audio file (any format `torchaudio` can decode — wav, flac, mp3, m4a, …). |
-| `num_speakers` | query | no | Exact number of speakers (overrides min/max). |
-| `min_speakers` | query | no | Lower bound on speaker count. |
-| `max_speakers` | query | no | Upper bound on speaker count. |
+| `num_speakers` | query | no | Exact number of speakers (overrides min/max). Must be `1`–`MAX_SPEAKERS` (default `50`); out-of-range values return `422`. |
+| `min_speakers` | query | no | Lower bound on speaker count. Must be `1`–`MAX_SPEAKERS` (default `50`); out-of-range values return `422`. |
+| `max_speakers` | query | no | Upper bound on speaker count. Must be `1`–`MAX_SPEAKERS` (default `50`); out-of-range values return `422`. |
 | `exclusive` | query | no | If `true`, return the pipeline's `exclusive_speaker_diarization` output (non-overlapping segments). Default `false`. |
 
 ### Successful response

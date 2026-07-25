@@ -154,6 +154,10 @@ MAX_UPLOAD_BYTES = max(
 MAX_AUDIO_SECONDS = max(
     1.0, float(os.environ.get("MAX_AUDIO_SECONDS", "43200").strip() or "43200")
 )
+# Upper bound for the client-supplied num/min/max speaker hints. Values outside
+# [1, MAX_SPEAKERS] are rejected with 422 before reaching the pipeline, so a
+# client cannot request pathological speaker counts.
+MAX_SPEAKERS = max(1, int(os.environ.get("MAX_SPEAKERS", "50").strip() or "50"))
 # Per-request inference timeout. Note: the underlying thread is not killable,
 # but the queue slot and the client request are released, so a stuck job stops
 # blocking the API surface. Set to 0 to disable.
@@ -783,9 +787,9 @@ async def diarize(
     request: Request,
     response: Response,
     file: Annotated[UploadFile, File(..., description="Audio file")],
-    num_speakers: Annotated[int | None, Query()] = None,
-    min_speakers: Annotated[int | None, Query()] = None,
-    max_speakers: Annotated[int | None, Query()] = None,
+    num_speakers: Annotated[int | None, Query(ge=1, le=MAX_SPEAKERS)] = None,
+    min_speakers: Annotated[int | None, Query(ge=1, le=MAX_SPEAKERS)] = None,
+    max_speakers: Annotated[int | None, Query(ge=1, le=MAX_SPEAKERS)] = None,
     exclusive: Annotated[bool, Query()] = False,
 ) -> StreamingResponse:
     if _pipeline is None or _JOB_QUEUE is None:
